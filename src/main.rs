@@ -88,6 +88,7 @@ fn unwrap_or_errx<T>(x: Result<T, String>) -> T {
     }
 }
 
+#[derive(Debug)]
 struct NixShellInput {
     pwd: PathBuf,
     env: EnvMap,
@@ -300,6 +301,7 @@ fn run_script(
 ) {
     let nix_shell_args = Args::parse(nix_shell_args, true).pipe(unwrap_or_errx);
     let inp = args_to_inp(absolute_dirname(&fname), &nix_shell_args);
+    // eprintln!("cached-nix-shell: input = {:?}", inp);
     let env = cached_shell_env(nix_shell_args.pure, &inp);
 
     let exec = if is_literal_bash_string(nix_shell_args.interpreter.as_bytes())
@@ -427,6 +429,7 @@ fn run_from_args(args: Vec<OsString>) {
 }
 
 fn cached_shell_env(pure: bool, inp: &NixShellInput) -> EnvMap {
+    // eprintln!("cached-nix-shell: input = {:?}", inp);
     let inputs = serialize_vecs(&[
         &serialize_env(&inp.env),
         &serialize_args(&inp.args),
