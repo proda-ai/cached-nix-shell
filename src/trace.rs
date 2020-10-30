@@ -4,6 +4,8 @@ use std::ffi::{OsStr, OsString};
 use std::fs::{read, read_dir, read_link, symlink_metadata};
 use std::io::ErrorKind;
 use std::os::unix::ffi::OsStrExt;
+use regex::bytes::Regex;
+use lazy_static::lazy_static;
 
 /// Output of trace-nix.so, sorted and deduplicated.
 pub struct Trace {
@@ -35,12 +37,56 @@ impl Trace {
     /// Return true if trace doesn't match (i.e. some file is changed)
     pub fn check_for_changes(&self) -> bool {
         for (k, v) in &self.items {
+            if check_item_ignore_for_caching(k) {
+                continue;
+            }
+            // eprintln!("{:?}", OsStr::from_bytes(&k[1..]));
             if check_item_updated(k, v) {
                 return true;
             }
         }
         false
     }
+}
+
+const DIRECTORIES: &'static[&'static str] = &[
+  r"shared",
+  r"\.git",
+  r"frontend",
+  r"shared",
+  r"local",
+  r"lib",
+  r"ml-server",
+  r"audit-service",
+  r"support",
+  r"test-lib",
+  r"test-suite",
+  r"DatabaseSchema",
+  r"src",
+  r"bin",
+  r"converted_csv",
+  r"e2e",
+  r"infrastructure",
+  r"python",
+  r"scripts",
+  r"styleguide",
+  r"csv",
+  r"review-validation",
+  r"uploads",
+  r"bench",
+  r"docker",
+];
+lazy_static! {
+    static ref RE: Regex = {
+        let mut combined_str = "^.?(/tmp|.*/excelsior[^/]*/(".to_owned();
+        combined_str.push_str(&DIRECTORIES.join("|"));
+        combined_str.push_str("))(/.*)?$");
+        Regex::new(&combined_str).unwrap()
+    };
+}
+
+fn check_item_ignore_for_caching(k: &[u8]) -> bool {
+    RE.is_match(k)
 }
 
 fn check_item_updated(k: &[u8], v: &[u8]) -> bool {
