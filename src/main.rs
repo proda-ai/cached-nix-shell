@@ -18,6 +18,7 @@ use std::process::{exit, Command, Stdio};
 use std::time::Instant;
 use tempfile::NamedTempFile;
 use ufcs::Pipe;
+use file_lock::FileLock;
 
 mod args;
 mod bash;
@@ -331,6 +332,19 @@ fn run_script(
     exit(1);
 }
 
+fn obtain_our_lock() -> file_lock::FileLock {
+    match FileLock::lock(".cached-nix-shell.lock", false, true) {
+        Ok(lock) => lock,
+        Err(_err) => {
+            eprintln!("waiting for cached-nix-shell lock..");
+            match FileLock::lock(".cached-nix-shell.lock", true, true) {
+                Ok(lock) => lock,
+                Err(err) => panic!("Error getting write lock: {}", err),
+            }
+        }
+    }
+}
+
 fn run_from_args(args: Vec<OsString>) {
     let mut args = Args::parse(args, false).pipe(unwrap_or_errx);
 
@@ -387,8 +401,12 @@ fn run_from_args(args: Vec<OsString>) {
         current_dir().expect("Can't get PWD")
     };
 
+    let filelock = obtain_our_lock();
+
     let inp = args_to_inp(nix_shell_pwd, &args);
     let env = cached_shell_env(args.pure, &inp);
+
+    filelock.unlock().expect("could not unlock lock");
 
     let (cmd, cmd_args) = match args.run {
         args::RunMode::InteractiveShell => (
