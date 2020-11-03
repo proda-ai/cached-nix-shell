@@ -37,10 +37,6 @@ impl Trace {
     /// Return true if trace doesn't match (i.e. some file is changed)
     pub fn check_for_changes(&self) -> bool {
         for (k, v) in &self.items {
-            if check_item_ignore_for_caching(k) {
-                continue;
-            }
-            // eprintln!("{:?}", OsStr::from_bytes(&k[1..]));
             if check_item_updated(k, v) {
                 return true;
             }
@@ -50,34 +46,36 @@ impl Trace {
 }
 
 const DIRECTORIES: &'static[&'static str] = &[
-  r"shared",
-  r"\.git",
-  r"frontend",
-  r"shared",
-  r"local",
-  r"lib",
-  r"ml-server",
   r"audit-service",
+  r"bench",
+  r"bin",
+  r"converted_csv",
+  r"csv",
+  r"DatabaseSchema",
+  r"dist-newstyle",
+  r"docker",
+  r"e2e",
+  r"frontend",
+  r"\.git",
+  r"infrastructure",
+  r"lib",
+  r"local",
+  r"ml-server",
+  r"python",
+  r"review-validation",
+  r"scripts",
+  r"shared",
+  r"shared",
+  r"src",
+  r"styleguide",
   r"support",
   r"test-lib",
   r"test-suite",
-  r"DatabaseSchema",
-  r"src",
-  r"bin",
-  r"converted_csv",
-  r"e2e",
-  r"infrastructure",
-  r"python",
-  r"scripts",
-  r"styleguide",
-  r"csv",
-  r"review-validation",
   r"uploads",
-  r"bench",
-  r"docker",
 ];
 lazy_static! {
-    static ref RE: Regex = {
+    static ref DO_HASH_REGEX: Regex = Regex::new(r"/package\.yaml$").unwrap();
+    static ref NO_HASH_REGEX: Regex = {
         let mut combined_str = "^.?(/tmp|.*/excelsior[^/]*/(".to_owned();
         combined_str.push_str(&DIRECTORIES.join("|"));
         combined_str.push_str("))(/.*)?$");
@@ -85,11 +83,11 @@ lazy_static! {
     };
 }
 
-fn check_item_ignore_for_caching(k: &[u8]) -> bool {
-    RE.is_match(k)
-}
-
 fn check_item_updated(k: &[u8], v: &[u8]) -> bool {
+    if !DO_HASH_REGEX.is_match(k) && NO_HASH_REGEX.is_match(k) {
+        return false;
+    }
+    // eprintln!("{:?}", OsStr::from_bytes(&k[1..]));
     let tmp: OsString;
     let fname = OsStr::from_bytes(&k[1..]);
     let res = match k.iter().next() {
