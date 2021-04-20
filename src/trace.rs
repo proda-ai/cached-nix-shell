@@ -74,7 +74,7 @@ const DIRECTORIES: &'static[&'static str] = &[
   r"uploads",
 ];
 lazy_static! {
-    static ref DO_HASH_REGEX: Regex = Regex::new(r"/package\.yaml$").unwrap();
+    static ref DO_HASH_REGEX: Regex = Regex::new(r"excelsior[^-].*/package\.yaml$").unwrap();
     static ref NO_HASH_REGEX: Regex = {
         let mut combined_str = "^.?(/tmp|.*/.cache/nix/tarballs|.*/excelsior[^/]*$|.*/excelsior[^/]*/(".to_owned();
         combined_str.push_str(&DIRECTORIES.join("|"));
